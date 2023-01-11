@@ -18,9 +18,9 @@ logging.basicConfig(format="%(asctime)s.%(msecs)03d:%(levelname)s:%(name)s - %(m
 
 
 class MADDataset(Dataset):
-    def __init__(self, window_length=150, v_feat_dim=768):
+    def __init__(self, window_length=150, v_feat_dim=768, data_ratio=1):
         self.root = "/nfs/data3/goldhofer/mad_dataset/"
-        self.data_ratio = 0.1
+        self.data_ratio = data_ratio
         self.lang_path = os.path.join(self.root, "CLIP_L14_language_tokens_features.h5", )
         self.video_path = os.path.join(self.root, 'CLIP_L14_frames_features_5fps.h5')
         self.anno_path = os.path.join(self.root, "annotations/MAD_test.json")
@@ -30,7 +30,7 @@ class MADDataset(Dataset):
         self.annos = data[2]
         self.keys = list(data[2].keys())
         self.stride = 0.5
-        self.window_length = window_length*5
+        self.window_length = window_length * 5
         self.v_feat_dim = v_feat_dim
         self.cached_movie = {'movie': None,
                              'video_feats': None}
@@ -113,7 +113,7 @@ class MADDataset(Dataset):
 
         model_input[qid]['src_vid'] = torch.stack([model_input[qid]['src_vid'][w[0]:w[1]] for w in windows])
 
-        #model_input = self.cat_tef(qid=qid,
+        # model_input = self.cat_tef(qid=qid,
         #                           model_input=model_input)
 
         model_input[qid]['src_txt'] = model_input[qid]['src_txt'].expand(model_input[qid]['src_vid'].shape[0],

@@ -11,7 +11,6 @@ from modules.metrics import sim_matrix_training, sim_matrix_inference, generate_
 from datasets.mad_dataset import MADDataset, collate_fn_replace_corrupted
 from modules.metrics import t2v_metrics, v2t_metrics
 
-
 text_embed_arr = []
 vid_embed_arr = []
 all_vid_ids = []
@@ -19,8 +18,7 @@ device = 'cuda'
 eval_window_size = 5
 num_frames = 5
 
-
-mad_dataset = MADDataset()
+mad_dataset = MADDataset(data_ratio=0.001)
 collate_fn = functools.partial(collate_fn_replace_corrupted, dataset=mad_dataset)
 mad_data_loader = DataLoader(mad_dataset, batch_size=1,
                              shuffle=True, num_workers=0,
@@ -40,20 +38,20 @@ for _, batch in tqdm(enumerate(mad_data_loader)):
 
     text_features = text_embed / text_embed.norm(dim=-1, keepdim=True)
     video_features = vid_embed / vid_embed.norm(dim=-1, keepdim=True)
+    text_features = text_features[:, 0, :]
 
-    for text, video in zip(text_features, video_features):
+    video_features_pooled = pool_frames(text_features, video_features)
 
-        video_features_pooled = pool_frames(text_features, video_features)
+    sims = sim_matrix_training(text_features, video_features_pooled, pooling_type='avg')
+    sims = sims.unsqueeze(dim=1)
 
-        sims = sim_matrix_training(text_features, video_features_pooled, pooling_type='avg')
+    metrics = t2v_metrics
+    res = metrics(sims)
 
-        metrics = t2v_metrics
-        res = metrics(sims)
-
-        window_metric = defaultdict(lambda: deque(maxlen=eval_window_size))
-        # Compute window metrics
-        for m in res:
-            window_metric[m].append(res[m])
+    window_metric = defaultdict(lambda: deque(maxlen=eval_window_size))
+    # Compute window metrics
+    for m in res:
+        window_metric[m].append(res[m])
 
 # Compute average of window metrics
 for m in window_metric:
