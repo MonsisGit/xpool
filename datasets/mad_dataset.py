@@ -17,11 +17,11 @@ logging.basicConfig(format="%(asctime)s.%(msecs)03d:%(levelname)s:%(name)s - %(m
                     level=logging.INFO)
 
 
-class LongNlqDataset(Dataset):
-    def __init__(self, opt):
+class MADDataset(Dataset):
+    def __init__(self, window_length=150, v_feat_dim=768):
         self.root = "/nfs/data3/goldhofer/mad_dataset/"
         self.data_ratio = 0.1
-        self.lang_path = os.path.join(self.root, "CLIP_L14_language_tokens_features.h5",)
+        self.lang_path = os.path.join(self.root, "CLIP_L14_language_tokens_features.h5", )
         self.video_path = os.path.join(self.root, 'CLIP_L14_frames_features_5fps.h5')
         self.anno_path = os.path.join(self.root, "annotations/MAD_test.json")
         data = self.get_data()
@@ -30,7 +30,8 @@ class LongNlqDataset(Dataset):
         self.annos = data[2]
         self.keys = list(data[2].keys())
         self.stride = 0.5
-        self.window_length = 150
+        self.window_length = window_length*5
+        self.v_feat_dim = v_feat_dim
         self.cached_movie = {'movie': None,
                              'video_feats': None}
 
@@ -77,7 +78,7 @@ class LongNlqDataset(Dataset):
 
             return model_input, target, windows
         except:
-            traceback.format_stack()
+            traceback.print_exc()
             return None
 
     def get_windows(self, model_input, qid):
@@ -88,7 +89,7 @@ class LongNlqDataset(Dataset):
         window = torch.cat([idx_start, idx_end], dim=1)
 
         pad_dim = idx_end.max() - vid_shape[0]
-        pad_zeros = torch.zeros(pad_dim, self.opt.v_feat_dim - 2)
+        pad_zeros = torch.zeros(pad_dim, self.v_feat_dim)
         model_input[qid]['src_vid'] = torch.cat([model_input[qid]['src_vid'], pad_zeros], dim=0)
         return window, model_input
 
@@ -112,8 +113,9 @@ class LongNlqDataset(Dataset):
 
         model_input[qid]['src_vid'] = torch.stack([model_input[qid]['src_vid'][w[0]:w[1]] for w in windows])
 
-        model_input = self.cat_tef(qid=qid,
-                                   model_input=model_input)
+        #model_input = self.cat_tef(qid=qid,
+        #                           model_input=model_input)
+
         model_input[qid]['src_txt'] = model_input[qid]['src_txt'].expand(model_input[qid]['src_vid'].shape[0],
                                                                          *model_input[qid]['src_txt'].shape[1:]).clone()
         model_input[qid]['src_vid_mask'] = torch.ones(model_input[qid]['src_vid'].shape[0:2])
@@ -131,7 +133,7 @@ class LongNlqDataset(Dataset):
             v_feats = np.array(self.cached_movie['video_feats'])
         model_inputs[qid] = {'src_vid': torch.tensor(v_feats),
                              'src_txt': torch.tensor(np.array(self.lang_feats[qid])).view(1, -1,
-                                                                                          self.opt.t_feat_dim).type(
+                                                                                          self.v_feat_dim).type(
                                  torch.float32)
                              }
         return model_inputs
@@ -151,7 +153,6 @@ def start_end_collate(batch):
     batched_meta = [b[1][batch_keys[idx]] for idx, b in enumerate(batch)]
     batched_data = [b[0][batch_keys[idx]] for idx, b in enumerate(batch)]
     batched_windows = [b[2] for b in batch]
-
 
     return batched_meta, batched_data, batch_keys, batched_windows
 

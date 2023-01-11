@@ -35,7 +35,7 @@ def main():
         from modules.tokenization_clip import SimpleTokenizer
         tokenizer = SimpleTokenizer()
 
-    test_data_loader  = DataFactory.get_data_loader(config, split_type='test')
+    test_data_loader = DataFactory.get_data_loader(config, split_type='test')
     model = ModelFactory.get_model(config)
     
     if config.metric == 't2v':

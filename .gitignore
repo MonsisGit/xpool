@@ -1,0 +1,10 @@
+/data
+*/data/*
+
+# Log Files
+/logs
+*.log
+
+.idea/
+config/
+model/
