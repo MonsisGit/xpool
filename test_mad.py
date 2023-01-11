@@ -15,30 +15,28 @@ text_embed_arr = []
 vid_embed_arr = []
 all_vid_ids = []
 device = 'cuda'
-eval_window_size = 5
-num_frames = 5
 
 mad_dataset = MADDataset(data_ratio=0.001)
 collate_fn = functools.partial(collate_fn_replace_corrupted, dataset=mad_dataset)
 mad_data_loader = DataLoader(mad_dataset, batch_size=1,
-                             shuffle=True, num_workers=0,
+                             shuffle=False, num_workers=0,
                              collate_fn=collate_fn)
 
 config = AllConfig()
 pool_frames = BaselinePooling(pooling_type='avg', config=config)
+window_metric = defaultdict(lambda: deque())
 
 for _, batch in tqdm(enumerate(mad_data_loader)):
-
     target, data, qid, windows = batch
+
     text_embed = data[0]['src_txt']
     vid_embed = data[0]['src_vid']
 
-    text_embed_arr.append(text_embed.cpu())
-    vid_embed_arr.append(vid_embed.cpu())
-
-    text_features = text_embed / text_embed.norm(dim=-1, keepdim=True)
-    video_features = vid_embed / vid_embed.norm(dim=-1, keepdim=True)
-    text_features = text_features[:, 0, :]
+    #text_features = text_embed / text_embed.norm(dim=-1, keepdim=True)
+    #video_features = vid_embed / vid_embed.norm(dim=-1, keepdim=True)
+    video_features = vid_embed
+    text_features = text_embed
+    text_features = text_features[:, -1, :]
 
     video_features_pooled = pool_frames(text_features, video_features)
 
@@ -48,7 +46,6 @@ for _, batch in tqdm(enumerate(mad_data_loader)):
     metrics = t2v_metrics
     res = metrics(sims)
 
-    window_metric = defaultdict(lambda: deque(maxlen=eval_window_size))
     # Compute window metrics
     for m in res:
         window_metric[m].append(res[m])
