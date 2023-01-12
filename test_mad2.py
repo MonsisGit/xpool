@@ -15,7 +15,7 @@ text_embed_arr = []
 vid_embed_arr = []
 device = 'cuda'
 pooling_type = 'topk'
-k=50
+k = 50
 
 mad_dataset = MADDataset(data_ratio=0.01)
 collate_fn = functools.partial(collate_fn_replace_corrupted, dataset=mad_dataset)
@@ -38,19 +38,24 @@ for _, batch in tqdm(enumerate(mad_data_loader)):
             all_vid_ids.append(qid[data_idx])
 
     # num_vids x frames x embed_dim
-    vid_embeds = torch.stack([d['src_vid'][0] for d in data])
-    text_embeds = torch.vstack([d['src_txt'][:,0,:] for d in data])
+    vid_embeds = torch.stack([d['src_vid'] for d in data]).squeeze()
+    text_embeds = torch.vstack([d['src_txt'][:, -1, :] for d in data])
+
+    #vid_embeds = (vid_embeds - vid_embeds.mean()) / vid_embeds.std()
+    #text_embeds = (text_embeds - text_embeds.mean()) / text_embeds.std()
+
 
     # Pool frames for inference once we have all texts and videos
     pool_frames.cpu()
 
     vid_embeds_pooled = pool_frames(text_embeds, vid_embeds)  # (movies,bsz*movies,embed)
-
+    #vid_embeds_pooled = (vid_embeds_pooled - vid_embeds_pooled.mean()) / vid_embeds_pooled.std()
     pool_frames.cuda()
 
     # num_vids x max_text_per_vid x embed_dim, (num_vids x num_vids x max_text_per_vid x embed_dim)
     text_embeds_per_video_id, vid_embeds_pooled_per_video_id = generate_embeds_per_video_id(text_embeds,
-                                                                                            vid_embeds_pooled, all_vid_ids,
+                                                                                            vid_embeds_pooled,
+                                                                                            all_vid_ids,
                                                                                             pooling_type)
 
     # num_vids x max_text_per_vid x num_vids
@@ -73,4 +78,3 @@ print(f"-------------------------------------------\n",
       f"R@10: {res['R10']} (window: {res['R10-window']})\n",
       f"MedR: {res['MedR']} (window: {res['MedR-window']})\n",
       f"MeanR: {res['MeanR']} (window: {res['MeanR-window']})\n")
-

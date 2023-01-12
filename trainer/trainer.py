@@ -132,7 +132,7 @@ class Trainer(BaseTrainer):
 
                 for v_id in data['video_id']:
                     all_vid_ids.append(v_id)
-                if ii==5:
+                if ii==3:
                     break
                 
             text_embeds = torch.cat(text_embed_arr) #(bsz*movies,embed)
