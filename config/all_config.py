@@ -13,8 +13,8 @@ class AllConfig(Config):
         parser = argparse.ArgumentParser(description=description)
         
         # data parameters
-        parser.add_argument('--dataset_name', type=str, default='MSRVTT', help="Dataset name")
-        parser.add_argument('--videos_dir', type=str, default='data/MSRVTT/vids', help="Location of videos")
+        parser.add_argument('--dataset_name', type=str, default='MSVD', help="Dataset name")
+        parser.add_argument('--videos_dir', type=str, default='data/MSVD/YouTubeClips', help="Location of videos")
         parser.add_argument('--msrvtt_train_file', type=str, default='9k')
         parser.add_argument('--num_frames', type=int, default=12)
         parser.add_argument('--video_sample_type', default='uniform', help="'rand'/'uniform'")

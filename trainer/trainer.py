@@ -112,7 +112,7 @@ class Trainer(BaseTrainer):
         all_vid_ids = []
         
         with torch.no_grad():
-            for _, data in tqdm(enumerate(self.valid_data_loader)):
+            for ii, data in tqdm(enumerate(self.valid_data_loader)):
                 if self.tokenizer is not None:
                     data['text'] = self.tokenizer(data['text'], return_tensors='pt', padding=True, truncation=True)
                 if isinstance(data['text'], torch.Tensor):
@@ -132,9 +132,11 @@ class Trainer(BaseTrainer):
 
                 for v_id in data['video_id']:
                     all_vid_ids.append(v_id)
+                if ii==5:
+                    break
                 
-            text_embeds = torch.cat(text_embed_arr)
-            vid_embeds = torch.cat(vid_embed_arr)
+            text_embeds = torch.cat(text_embed_arr) #(bsz*movies,embed)
+            vid_embeds = torch.cat(vid_embed_arr) #(movies,frames,embed)
 
             # Since we have all pairs, remove duplicate videos when there's multiple captions per video
             vid_embeds_per_video_id = {}
@@ -146,12 +148,16 @@ class Trainer(BaseTrainer):
              
             # Pool frames for inference once we have all texts and videos
             self.model.pool_frames.cpu()
-            vid_embeds_pooled = self.model.pool_frames(text_embeds, vid_embeds)
+
+            vid_embeds_pooled = self.model.pool_frames(text_embeds, vid_embeds) #(movies,bsz*movies,embed)
+
             self.model.pool_frames.cuda()
 
-            text_embeds_per_video_id, vid_embeds_pooled_per_video_id = generate_embeds_per_video_id(text_embeds, 
+            # num_vids x max_text_per_vid x embed_dim, (num_vids x num_vids x max_text_per_vid x embed_dim)
+            text_embeds_per_video_id, vid_embeds_pooled_per_video_id = generate_embeds_per_video_id(text_embeds,
                     vid_embeds_pooled, all_vid_ids, self.pooling_type)
-            
+
+            # num_vids x max_text_per_vid x num_vids
             sims = sim_matrix_inference(text_embeds_per_video_id, vid_embeds_pooled_per_video_id, self.pooling_type)
 
             total_val_loss = total_val_loss / len(self.valid_data_loader)

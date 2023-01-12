@@ -109,7 +109,7 @@ def generate_embeds_per_video_id(text_embeds, vid_embeds_pooled, all_vid_ids, po
     return text_embeds_per_video_id, vid_embeds_pooled_per_video_id
 
 
-def t2v_metrics(sims):
+def t2v_metrics(sims, ground_truth=None):
     # Permute sims so it represents a sequence of text-video similarity matrices.
     # Then obtain the double argsort to position the rank on the diagonal
     stacked_sims = sims.permute(1,0,2)
@@ -124,7 +124,7 @@ def t2v_metrics(sims):
     mask = ~ torch.logical_or(torch.isinf(valid_check), torch.isnan(valid_check))
     valid_ranks = ranks[mask]
 
-    return compute_metrics(valid_ranks.numpy())
+    return compute_metrics(valid_ranks.numpy(), ground_truth)
 
 
 def v2t_metrics(sims):
@@ -142,7 +142,7 @@ def v2t_metrics(sims):
     return compute_metrics(ranks)
 
 
-def compute_metrics(lst):
+def compute_metrics(lst, ground_truth):
     metrics = {}
     metrics["R1"] = 100 * float(np.sum(lst == 0)) / len(lst)
     metrics["R5"] = 100 * float(np.sum(lst < 5)) / len(lst)
@@ -153,6 +153,33 @@ def compute_metrics(lst):
     metrics["MeanR"] = np.mean(lst) + 1
     #stats = [metrics[x] for x in ("R1", "R5", "R10")]
     #metrics["geometric_mean_R1-R5-R10"] = scipy.stats.mstats.gmean(stats)
+    return metrics
+
+
+def compute_metrics_2(lst, ground_truth):
+    relevant_indices = torch.where(ground_truth != 0)
+    relevant_ranks = lst[relevant_indices]
+
+    recall_thresh_names = ["R1", "R5", "R10","R50"]
+    recall_thres = [1, 5, 10, 50]
+    metrics = {}
+
+    for thresh, name in zip(recall_thres, recall_thresh_names):
+        num_relevant_pairs_in_top_k = (relevant_ranks <= thresh).sum()
+        metrics[name] = 100 * (num_relevant_pairs_in_top_k / len(relevant_indices))
+
+    return metrics
+
+
+def compute_metrics_3(lst, ground_truth):
+    recall_thresh_names = ["R1", "R5", "R10","R50"]
+    recall_thres = [1, 5, 10, 50]
+    metrics = {}
+    gt_inds = torch.where(ground_truth!=0)[0]
+
+    for thresh, name in zip(recall_thres, recall_thresh_names):
+        metrics[name] = 100 * float(np.array([l in gt_inds for l in lst[:thresh]]).mean())
+
     return metrics
 
 
